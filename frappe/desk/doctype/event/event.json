@@ -23,6 +23,9 @@
   "all_day",
   "sync_with_google_calendar",
   "add_video_conferencing",
+  "minutes_of_meeting_section",
+  "notes",
+  "actions",
   "sb_00",
   "google_calendar",
   "google_calendar_id",
@@ -65,7 +68,7 @@
    "fieldname": "event_category",
    "fieldtype": "Select",
    "label": "Event Category",
-   "options": "Event\nMeeting\nCall\nSent/Received Email\nOther"
+   "options": "Event\nMeeting\nCall\nDemo\nSent/Received Email\nOther"
   },
   {
    "fieldname": "event_type",
@@ -291,13 +294,29 @@
    "label": "Google Meet Link",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "minutes_of_meeting_section",
+   "fieldtype": "Section Break",
+   "label": "Minutes of Meeting"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text Editor",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "actions",
+   "fieldtype": "Table",
+   "label": "Actions",
+   "options": "MoM Action List"
   }
  ],
  "grid_page_length": 50,
  "icon": "fa fa-calendar",
  "idx": 1,
  "links": [],
- "modified": "2025-06-17 15:31:01.945146",
+ "modified": "2025-11-11 10:57:59.621556",
  "modified_by": "Administrator",
  "module": "Desk",
  "name": "Event",

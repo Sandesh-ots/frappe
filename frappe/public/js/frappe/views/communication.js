@@ -48,13 +48,16 @@ frappe.views.CommunicationComposer = class {
 
 	get_fields() {
 		let me = this;
+		const email_accounts = frappe.boot.email_accounts.filter((account) => {
+			return ( account.email_account && account.enable_outgoing );
+		});
 		const fields = [
 			{
 				label: __("To", null, "Email Recipients"),
 				fieldtype: "MultiSelect",
 				reqd: 0,
 				fieldname: "recipients",
-				default: this.get_default_recipients("recipients"),
+				default: this.get_default_recipients("recipients")
 			},
 			{
 				fieldtype: "Button",
@@ -169,16 +172,20 @@ frappe.views.CommunicationComposer = class {
 		];
 
 		// add from if user has access to multiple email accounts
-		const email_accounts = frappe.boot.email_accounts.filter((account) => {
+/*		const email_accounts = frappe.boot.email_accounts.filter((account) => {
 			return (
 				!["All Accounts", "Sent", "Spam", "Trash"].includes(account.email_account) &&
 				account.enable_outgoing
 			);
-		});
+		});*/
 
 		if (email_accounts.length) {
 			this.user_email_accounts = email_accounts.map(function (e) {
 				return e.email_id;
+			});
+
+			fields.unshift({
+				fieldtype: "Column Break" 
 			});
 
 			fields.unshift({
@@ -332,8 +339,11 @@ frappe.views.CommunicationComposer = class {
 			if (this.last_email.sender == this.sender) {
 				this.recipients = this.last_email.recipients;
 			}
-			this.cc = this.last_email.cc;
-			this.bcc = this.last_email.bcc;
+
+			if (this.reply_all) {
+				this.cc = this.last_email.cc;
+				this.bcc = this.last_email.bcc;
+			}
 		}
 
 		if (!this.forward && !this.recipients) {

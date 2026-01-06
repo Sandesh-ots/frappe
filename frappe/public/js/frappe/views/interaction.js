@@ -1,5 +1,6 @@
-// Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2018, Frappe Technologies Pvt. Ltd.
 // MIT License. See license.txt
+
 frappe.provide("frappe.views");
 frappe.provide("frappe.interaction_settings");
 
@@ -24,23 +25,17 @@ frappe.views.InteractionComposer = class InteractionComposer {
 		$(document).on("upload_complete", function (event, attachment) {
 			if (me.dialog.display) {
 				let wrapper = $(me.dialog.fields_dict.select_attachments.wrapper);
-
-				// find already checked items
 				let checked_items = wrapper.find("[data-file-name]:checked").map(function () {
 					return $(this).attr("data-file-name");
 				});
-
-				// reset attachment list
 				me.render_attach();
-
-				// check latest added
 				checked_items.push(attachment.name);
-
 				$.each(checked_items, function (i, filename) {
 					wrapper.find('[data-file-name="' + filename + '"]').prop("checked", true);
 				});
 			}
 		});
+
 		me.prepare();
 		me.dialog.show();
 	}
@@ -78,12 +73,35 @@ frappe.views.InteractionComposer = class InteractionComposer {
 			{ label: __("Public"), fieldtype: "Check", fieldname: "public", default: "0" },
 			{ fieldtype: "Column Break" },
 			{ label: __("Date"), fieldtype: "Datetime", fieldname: "due_date" },
+
+			{ fieldtype: "Section Break", label: __("Assignment") },
 			{
-				label: __("Assigned To"),
-				fieldtype: "Link",
-				fieldname: "assigned_to",
-				options: "User",
+				label: __("Assign to me"),
+				fieldtype: "Check",
+				fieldname: "assign_to_me",
+				default: 0,
+				onchange: () => me.set_assign_to_me(),
 			},
+			{
+				fieldtype: "MultiSelectPills",
+				fieldname: "assign_to",
+				label: __("Assign To"),
+				reqd: 0,
+				get_data: function (txt) {
+					return frappe.db.get_link_options("User", txt, {
+						user_type: "System User",
+						enabled: 1,
+					});
+				},
+			},
+			{
+				label: __("Assign To User Group"),
+				fieldtype: "Link",
+				fieldname: "assign_to_user_group",
+				options: "User Group",
+				onchange: () => me.set_user_group_list(),
+			},
+
 			{ fieldtype: "Section Break" },
 			{ label: __("Summary"), fieldtype: "Data", fieldname: "summary" },
 			{ fieldtype: "Section Break" },
@@ -95,6 +113,36 @@ frappe.views.InteractionComposer = class InteractionComposer {
 				fieldname: "select_attachments",
 			},
 		];
+	}
+
+	set_assign_to_me() {
+		let me = this;
+		let assign_to = [];
+
+		if (me.dialog.get_value("assign_to_me")) {
+			assign_to.push(frappe.session.user);
+		}
+
+		me.dialog.set_value("assign_to", assign_to);
+	}
+
+	set_user_group_list() {
+		let me = this;
+		let user_group = me.dialog.get_value("assign_to_user_group");
+		me.dialog.set_value("assign_to_me", 0);
+
+		if (user_group) {
+			frappe.db
+				.get_list("User Group Member", {
+					parent_doctype: "User Group",
+					filters: { parent: user_group },
+					fields: ["user"],
+				})
+				.then((response) => {
+					let members = response.map((r) => r.user);
+					me.dialog.set_value("assign_to", members);
+				});
+		}
 	}
 
 	get_event_categories() {
@@ -118,7 +166,6 @@ frappe.views.InteractionComposer = class InteractionComposer {
 			doc_mapping[values.interaction_type]["reqd_fields"].forEach((value) => {
 				me.dialog.set_df_property(value, "reqd", 1);
 			});
-
 			doc_mapping[values.interaction_type]["hidden_fields"].forEach((value) => {
 				me.dialog.set_df_property(value, "hidden", 1);
 			});
@@ -129,9 +176,7 @@ frappe.views.InteractionComposer = class InteractionComposer {
 		var fields = this.dialog.fields_dict;
 		var attach = $(fields.select_attachments.wrapper);
 
-		if (!this.attachments) {
-			this.attachments = [];
-		}
+		if (!this.attachments) this.attachments = [];
 
 		let args = {
 			folder: "Home/Attachments",
@@ -159,6 +204,7 @@ frappe.views.InteractionComposer = class InteractionComposer {
 				__("Add Attachment") +
 				"</a></p>"
 		).appendTo(attach.empty());
+
 		attach.find(".add-more-attachments a").on("click", () => new frappe.ui.FileUploader(args));
 		this.render_attach();
 	}
@@ -166,20 +212,13 @@ frappe.views.InteractionComposer = class InteractionComposer {
 	render_attach() {
 		let fields = this.dialog.fields_dict;
 		let attach = $(fields.select_attachments.wrapper).find(".attach-list").empty();
-
 		let files = [];
-		if (this.attachments && this.attachments.length) {
-			files = files.concat(this.attachments);
-		}
-		if (cur_frm) {
-			files = files.concat(cur_frm.get_files());
-		}
-
+		if (this.attachments && this.attachments.length) files = files.concat(this.attachments);
+		if (cur_frm) files = files.concat(cur_frm.get_files());
 		if (files.length) {
 			$.each(files, function (i, f) {
 				if (!f.file_name) return;
 				f.file_url = frappe.urllib.get_full_url(f.file_url);
-
 				$(
 					repl(
 						'<p class="checkbox">' +
@@ -198,15 +237,12 @@ frappe.views.InteractionComposer = class InteractionComposer {
 	create_action() {
 		let me = this;
 		let btn = me.dialog.get_primary_btn();
-
 		let form_values = this.get_values();
 		if (!form_values) return;
 
 		let selected_attachments = $.map(
 			$(me.dialog.wrapper).find("[data-file-name]:checked"),
-			function (element) {
-				return $(element).attr("data-file-name");
-			}
+			(el) => $(el).attr("data-file-name")
 		);
 
 		me.create_interaction(btn, form_values, selected_attachments);
@@ -219,24 +255,23 @@ frappe.views.InteractionComposer = class InteractionComposer {
 			values["reference_doctype"] = me.frm.doc.doctype;
 			values["reference_document"] = me.frm.doc.name;
 		}
-
 		return values;
 	}
 
 	create_interaction(btn, form_values, selected_attachments) {
 		let me = this;
 		me.dialog.hide();
-
 		let field_map = get_doc_mappings();
 		let interaction_values = {};
+
 		Object.keys(form_values).forEach((value) => {
 			interaction_values[field_map[form_values.interaction_type]["field_map"][value]] =
 				form_values[value];
 		});
 
-		if ("event_type" in interaction_values) {
+		if ("event_type" in interaction_values)
 			interaction_values["event_type"] = form_values.public == 1 ? "Public" : "Private";
-		}
+
 		if (interaction_values["doctype"] == "Event") {
 			interaction_values["event_participants"] = [
 				{
@@ -245,12 +280,11 @@ frappe.views.InteractionComposer = class InteractionComposer {
 				},
 			];
 		}
-		if (!("owner" in interaction_values)) {
-			interaction_values["owner"] = frappe.session.user;
-		}
-		if (!("assigned_by" in interaction_values) && interaction_values["doctype"] == "ToDo") {
+
+		if (!("owner" in interaction_values)) interaction_values["owner"] = frappe.session.user;
+		if (!("assigned_by" in interaction_values) && interaction_values["doctype"] == "ToDo")
 			interaction_values["assigned_by"] = frappe.session.user;
-		}
+
 		return frappe.call({
 			method: "frappe.client.insert",
 			args: { doc: interaction_values },
@@ -262,47 +296,29 @@ frappe.views.InteractionComposer = class InteractionComposer {
 						indicator: "green",
 					});
 
-					if (form_values.interaction_type === "Event" && "assigned_to" in form_values) {
-						me.assign_document(r.message, form_values["assigned_to"]);
-					}
+					let user_list = form_values.assign_to || [];
+					if (form_values.assign_to_me) user_list.push(frappe.session.user);
 
-					if (selected_attachments) {
-						me.add_attachments(r.message, selected_attachments);
+					if (user_list.length > 0 && ["Event", "ToDo"].includes(form_values.interaction_type)) {
+						me.assign_document(r.message, user_list);
 					}
-					if (cur_frm) {
-						cur_frm.reload_doc();
-					}
+					if (selected_attachments) me.add_attachments(r.message, selected_attachments);
+					if (cur_frm) cur_frm.reload_doc();
 				} else {
-					frappe.msgprint(
-						__("There were errors while creating the document. Please try again.")
-					);
+					frappe.msgprint(__("Error while creating the document."));
 				}
 			},
 		});
 	}
 
-	assign_document(doc, assignee) {
+	assign_document(doc, assignees) {
+		let assign_list = Array.isArray(assignees) ? assignees : [assignees];
 		frappe.call({
 			method: "frappe.desk.form.assign_to.add",
 			args: {
 				doctype: doc.doctype,
 				name: doc.name,
-				assign_to: JSON.stringify([assignee]),
-			},
-			callback: function (r) {
-				if (!r.exc) {
-					frappe.show_alert({
-						message: __("The document has been assigned to {0}", [assignee]),
-						indicator: "green",
-					});
-					return;
-				} else {
-					frappe.show_alert({
-						message: __("The document could not be correctly assigned"),
-						indicator: "orange",
-					});
-					return;
-				}
+				assign_to: JSON.stringify(assign_list),
 			},
 		});
 	}
@@ -314,19 +330,6 @@ frappe.views.InteractionComposer = class InteractionComposer {
 				doctype: doc.doctype,
 				name: doc.name,
 				attachments: JSON.stringify(attachments),
-			},
-			callback: function (r) {
-				if (!r.exc) {
-					return;
-				} else {
-					frappe.show_alert({
-						message: __(
-							"The attachments could not be correctly linked to the new document"
-						),
-						indicator: "orange",
-					});
-					return;
-				}
 			},
 		});
 	}
@@ -353,7 +356,6 @@ function get_doc_mappings() {
 				due_date: "date",
 				reference_doctype: "reference_type",
 				reference_document: "reference_name",
-				assigned_to: "allocated_to",
 			},
 			reqd_fields: ["description"],
 			hidden_fields: ["public", "category"],

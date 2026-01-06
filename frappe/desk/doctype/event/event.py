@@ -50,22 +50,25 @@ class Event(Document):
 
 	if TYPE_CHECKING:
 		from frappe.desk.doctype.event_participants.event_participants import EventParticipants
+		from frappe.desk.doctype.mom_action_list.mom_action_list import MoMActionList
 		from frappe.types import DF
 
+		actions: DF.Table[MoMActionList]
 		add_video_conferencing: DF.Check
 		all_day: DF.Check
 		color: DF.Color | None
 		description: DF.TextEditor | None
 		ends_on: DF.Datetime | None
-		event_category: DF.Literal["Event", "Meeting", "Call", "Sent/Received Email", "Other"]
+		event_category: DF.Literal["Event", "Meeting", "Call", "Demo", "Sent/Received Email", "Other"]
 		event_participants: DF.Table[EventParticipants]
 		event_type: DF.Literal["Private", "Public"]
 		friday: DF.Check
 		google_calendar: DF.Link | None
 		google_calendar_event_id: DF.Data | None
 		google_calendar_id: DF.Data | None
-		google_meet_link: DF.Data | None
+		google_meet_link: DF.SmallText | None
 		monday: DF.Check
+		notes: DF.TextEditor | None
 		pulled_from_google_calendar: DF.Check
 		repeat_on: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		repeat_this_event: DF.Check
@@ -81,7 +84,6 @@ class Event(Document):
 		thursday: DF.Check
 		tuesday: DF.Check
 		wednesday: DF.Check
-
 	# end: auto-generated types
 	def validate(self):
 		if not self.starts_on:
